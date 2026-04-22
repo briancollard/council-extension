@@ -3,7 +3,7 @@ import { defineManifest } from '@crxjs/vite-plugin';
 export default defineManifest({
   manifest_version: 3,
   name: 'Council',
-  version: '0.2.0',
+  version: '0.2.1',
   description: 'Multi-LLM conversation manager — unified threads across providers',
   default_locale: 'en',
 
