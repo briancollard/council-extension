@@ -1,0 +1,353 @@
+/* ==========================================================================
+   Popup styles — Council brand theme
+   ========================================================================== */
+
+:root {
+  --brand-accent: #7c3aed;
+  --brand-accent-hover: #6d28d9;
+  --brand-cyan: #4ecdc4;
+  --brand-danger: #ef4444;
+  --brand-success: #10b981;
+  --bg-light: #ffffff;
+  --bg-dark: #1a1a1a;
+  --surface-light: #f7f7f8;
+  --surface-dark: #2a2a2a;
+  --text-light: #1a1a1a;
+  --text-dark: #f5f5f5;
+  --text-secondary-light: #6b7280;
+  --text-secondary-dark: #9ca3af;
+  --border-light: #e5e5e5;
+  --border-dark: #3a3a3a;
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+   --------------------------------------------------------------------------- */
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+
+.material-icons {
+  padding: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Layout
+   --------------------------------------------------------------------------- */
+
+.popup-container {
+  padding: 16px;
+  width: 240px;
+  border-radius: 12px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.title {
+  display: flex;
+  align-items: flex-end;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.gear-icon {
+  text-decoration: none;
+  color: inherit;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---------------------------------------------------------------------------
+   Buttons (base)
+   --------------------------------------------------------------------------- */
+
+button {
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  width: 100%;
+  text-align: left;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Light Mode
+   --------------------------------------------------------------------------- */
+
+@media (prefers-color-scheme: light) {
+  body {
+    background-color: var(--bg-light);
+    color: var(--text-light);
+  }
+
+  .popup-container {
+    background-color: var(--bg-light);
+  }
+
+  button {
+    background-color: var(--surface-light);
+    color: var(--text-light);
+    border: 1px solid var(--border-light);
+  }
+
+  button:hover {
+    background-color: #eeeeef;
+    border-color: #d1d5db;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Dark Mode
+   --------------------------------------------------------------------------- */
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: var(--bg-dark);
+    color: var(--text-dark);
+  }
+
+  .popup-container {
+    background-color: var(--bg-dark);
+  }
+
+  button {
+    background-color: var(--surface-dark);
+    color: var(--text-dark);
+    border: 1px solid var(--border-dark);
+  }
+
+  button:hover {
+    background-color: #333;
+    border-color: #555;
+  }
+
+  .gear-icon {
+    color: var(--text-dark);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Manager Button (brand accent)
+   --------------------------------------------------------------------------- */
+
+#manager-button {
+  background: linear-gradient(135deg, var(--brand-accent), var(--brand-cyan)) !important;
+  color: #fff !important;
+  border: none !important;
+  height: 42px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+#manager-button:hover {
+  opacity: 0.9;
+}
+
+/* ---------------------------------------------------------------------------
+   Council Toggle Switch (accent when active)
+   --------------------------------------------------------------------------- */
+
+.council-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 24px;
+}
+
+.council-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.council-switch input:disabled + .council-switch-slider {
+  cursor: not-allowed;
+}
+
+.council-switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.3s;
+}
+
+.council-switch-slider::before {
+  position: absolute;
+  content: '';
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: 0.3s;
+}
+
+input:checked + .council-switch-slider {
+  background-color: var(--brand-accent);
+}
+
+input:focus + .council-switch-slider {
+  box-shadow: 0 0 2px var(--brand-accent);
+}
+
+input:checked + .council-switch-slider::before {
+  transform: translateX(16px);
+}
+
+.council-switch-slider.round {
+  border-radius: 24px;
+}
+
+.council-switch-slider.round::before {
+  border-radius: 50%;
+}
+
+/* ---------------------------------------------------------------------------
+   Auth / Login Section
+   --------------------------------------------------------------------------- */
+
+.auth-section {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.auth-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.auth-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.login-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-input {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  font-size: 13px;
+  background: transparent;
+  color: inherit;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.auth-input:focus {
+  border-color: var(--brand-accent);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.12);
+}
+
+.login-error {
+  font-size: 12px;
+  color: var(--brand-danger);
+  padding: 2px 0;
+}
+
+.login-btn {
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none !important;
+  background-color: var(--brand-accent) !important;
+  color: #fff !important;
+  text-align: center;
+  width: 100%;
+  transition: background-color 0.15s;
+}
+
+.login-btn:hover {
+  background-color: var(--brand-accent-hover) !important;
+}
+
+.login-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.signout-btn {
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  background-color: transparent !important;
+  color: var(--brand-danger) !important;
+  border: 1px solid var(--brand-danger) !important;
+  text-align: center;
+  width: 100%;
+}
+
+.signout-btn:hover {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+}
+
+.token-status {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.token-status.connected {
+  color: var(--brand-success);
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .auth-section {
+    border-top-color: var(--border-dark);
+  }
+
+  .auth-input {
+    border-color: var(--border-dark);
+  }
+
+  .auth-input:focus {
+    border-color: var(--brand-accent);
+  }
+}

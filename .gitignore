@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.*
+logs/
+*.log
+.DS_Store
+.vite/
+coverage/
+.vscode/
+.idea/
+*.zip
+!council-extension-*.zip
+.claude/

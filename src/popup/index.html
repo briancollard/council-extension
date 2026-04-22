@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="popup.css" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="popup-container">
+      <div class="header">
+        <h1 class="title">
+          <img title="Council" style="width: 24px; height: 24px; margin-right: 4px" src="../../images/icon-128.png" />
+          Council
+          <span style="font-size: 11px; color: #a9a9a9; margin-left: 8px"> v<span id="version-number"></span> </span>
+        </h1>
+        <a href="https://chatgpt.com/#setting/general" target="_blank" class="gear-icon" title="Settings">
+          <button id="settings-button" class="material-icons" style="padding: 4px">settings</button>
+        </a>
+      </div>
+
+      <div class="menu">
+        <a
+          href="https://chatgpt.com/#manager/conversations"
+          target="_blank"
+          title="Manager"
+          style="text-decoration: none"
+        >
+          <button id="manager-button" style="display: flex; align-items: center; justify-content: space-between">
+            Manager <span class="material-icons">bolt</span>
+          </button>
+        </a>
+      </div>
+
+      <div
+        style="
+          position: relative;
+          margin-top: 12px;
+          margin-bottom: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        "
+      >
+        <span>Enable Council</span>
+        <span style="font-size: 11px; color: #a9a9a9; position: absolute; top: 22px; left: 0">
+          Will refresh ChatGPT tabs
+        </span>
+        <label class="council-switch" style="opacity: 1">
+          <input id="council-switch" type="checkbox" checked />
+          <span class="council-switch-slider round"></span>
+        </label>
+      </div>
+
+      <div class="auth-section">
+        <!-- Login form (shown when logged out) -->
+        <div id="login-form">
+          <div class="auth-header">
+            <span class="auth-label">Sign in to Council</span>
+          </div>
+          <div class="login-fields">
+            <input id="login-email" type="email" placeholder="Email" class="auth-input" autocomplete="email" />
+            <input
+              id="login-password"
+              type="password"
+              placeholder="Password"
+              class="auth-input"
+              autocomplete="current-password"
+            />
+            <div id="login-error" class="login-error" style="display: none"></div>
+            <button id="login-btn" class="login-btn">Sign in</button>
+          </div>
+        </div>
+
+        <!-- Logged-in state -->
+        <div id="logged-in-view" style="display: none">
+          <div class="auth-header">
+            <span class="auth-label" id="logged-in-user"></span>
+            <span id="auth-status" class="token-status connected">connected</span>
+          </div>
+
+          <!-- Sync status -->
+          <div id="sync-status" style="margin: 12px 0; font-size: 12px">
+            <div
+              style="
+                font-weight: 600;
+                margin-bottom: 6px;
+                color: #888;
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+              "
+            >
+              Sync Status
+            </div>
+            <div id="sync-chatgpt" style="display: flex; align-items: center; gap: 8px; padding: 4px 0">
+              <span id="sync-chatgpt-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #666"></span>
+              <span style="flex: 1">ChatGPT</span>
+              <span id="sync-chatgpt-status" style="font-size: 11px; color: #888">Checking...</span>
+            </div>
+            <div id="sync-claude" style="display: flex; align-items: center; gap: 8px; padding: 4px 0">
+              <span id="sync-claude-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #666"></span>
+              <span style="flex: 1">Claude</span>
+              <span id="sync-claude-status" style="font-size: 11px; color: #888">Checking...</span>
+            </div>
+            <div id="sync-gemini" style="display: flex; align-items: center; gap: 8px; padding: 4px 0">
+              <span id="sync-gemini-dot" style="width: 6px; height: 6px; border-radius: 50%; background: #666"></span>
+              <span style="flex: 1">Gemini</span>
+              <span id="sync-gemini-status" style="font-size: 11px; color: #888">Not configured</span>
+            </div>
+            <button
+              id="sync-now-btn"
+              style="
+                margin-top: 8px;
+                width: 100%;
+                padding: 6px;
+                font-size: 11px;
+                background: transparent;
+                border: 1px solid #444;
+                color: #ccc;
+                border-radius: 6px;
+                cursor: pointer;
+              "
+            >
+              Sync Now
+            </button>
+          </div>
+
+          <button id="signout-btn" class="signout-btn">Sign out</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="popup.ts"></script>
+  </body>
+</html>
