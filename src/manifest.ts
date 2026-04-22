@@ -15,8 +15,6 @@ export default defineManifest({
     'https://claude.ai/*',
     'https://gemini.google.com/*',
     'https://*.google.com/*',
-    'http://localhost:3001/*',
-    'http://localhost:3002/*',
     'https://council-app-production.up.railway.app/*',
     'https://api.council.dev/*',
     'https://*.council.dev/*',
@@ -72,12 +70,7 @@ export default defineManifest({
     },
     // Council web app — bridge for extension <-> web app communication
     {
-      matches: [
-        'http://localhost:5173/*',
-        'http://localhost:3002/*',
-        'https://council-app-production.up.railway.app/*',
-        'https://*.council.dev/*',
-      ],
+      matches: ['https://council-app-production.up.railway.app/*', 'https://*.council.dev/*'],
       js: ['src/content/council/bridge.ts'],
       run_at: 'document_end',
     },
@@ -114,7 +107,7 @@ export default defineManifest({
   },
 
   externally_connectable: {
-    matches: ['http://localhost:*/*', 'https://council-app-production.up.railway.app/*', 'https://*.council.dev/*'],
+    matches: ['https://council-app-production.up.railway.app/*', 'https://*.council.dev/*'],
   },
 
   web_accessible_resources: [
