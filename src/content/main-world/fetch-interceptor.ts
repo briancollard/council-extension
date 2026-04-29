@@ -363,6 +363,20 @@ window.fetch = async function patchedFetch(...args: Parameters<typeof fetch>): P
       after?: string;
       isArchived?: boolean;
     };
+    // Capture the live persisted-query hash so background sync can use it
+    // instead of a stale hardcoded value (chatgpt.com rotates these).
+    try {
+      const extensionsStr = searchParams.get('extensions');
+      if (extensionsStr) {
+        const ext = JSON.parse(extensionsStr) as { persistedQuery?: { sha256Hash?: string } };
+        const hash = ext.persistedQuery?.sha256Hash;
+        if (hash && /^[a-f0-9]{64}$/.test(hash)) {
+          window.dispatchEvent(new CustomEvent('council:graphql-hash', { detail: { hash, capturedAt: Date.now() } }));
+        }
+      }
+    } catch {
+      // not all graphql calls have extensions param — ignore parse failures
+    }
     if (variables.first === 28 && variables.after === 'aWR4Oi0x' && variables.isArchived === false) {
       const data = await response.clone().json();
       dispatch(SP_EVENTS.HISTORY_LOADED_RECEIVED, data);

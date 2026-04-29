@@ -37,7 +37,7 @@ async function getAuthToken(): Promise<{ token: string } | null> {
 
   // 2. Fallback: check chrome.storage (set by popup login — may be stale)
   const stored = await new Promise<string | null>((resolve) => {
-    chrome.storage.sync.get(['councilBearerToken'], (data) => {
+    chrome.storage.local.get(['councilBearerToken'], (data) => {
       resolve(data.councilBearerToken || null);
     });
   });
@@ -87,7 +87,7 @@ async function councilFetch(path: string, method = 'POST', body?: unknown): Prom
     console.error(`[Council] API ${res.status} on ${path}`);
     // If auth failed, clear stale storage token and retry once with cookie
     if (res.status === 401) {
-      chrome.storage.sync.remove('councilBearerToken');
+      chrome.storage.local.remove('councilBearerToken');
       const freshAuth = await getAuthToken();
       if (freshAuth && freshAuth.token !== auth.token) {
         console.log('[Council] Retrying with fresh token...');
@@ -102,6 +102,34 @@ async function councilFetch(path: string, method = 'POST', body?: unknown): Prom
     }
   }
   return res;
+}
+
+// ---------------------------------------------------------------------------
+// Status reporting — close the silent-failure loop
+// ---------------------------------------------------------------------------
+
+/**
+ * Report a sync status to the server. Used when the extension detects a
+ * provider-side failure (401 / token revocation / etc.) so the UI can
+ * surface the broken state instead of leaving the connection stuck at
+ * 'syncing' or stale 'connected'. Best-effort — failures here are
+ * logged but never thrown, since the caller already has its own bug
+ * to deal with.
+ */
+async function reportSyncStatus(
+  provider: 'chatgpt' | 'claude' | 'gemini',
+  status: 'token_expired' | 'error' | 'connected',
+  error?: string,
+): Promise<void> {
+  try {
+    await councilFetch(`/api/sync/connections/${provider}/sync`, 'POST', {
+      status,
+      error: error ?? null,
+      completedAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    console.error(`[Council] Failed to report ${status} for ${provider}:`, e);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -132,6 +160,12 @@ async function pushChatGPTToken(): Promise<void> {
 
     if (!sessionRes.ok) {
       console.log(`[Council] ChatGPT: session endpoint returned ${sessionRes.status}`);
+      // 401/403 here means the cookie is stale (user signed out at chatgpt.com
+      // or session revoked). Report it so the UI can flip to "Session expired"
+      // instead of staying at 'connected' forever.
+      if (sessionRes.status === 401 || sessionRes.status === 403) {
+        await reportSyncStatus('chatgpt', 'token_expired', `chatgpt.com auth/session returned ${sessionRes.status}`);
+      }
       return;
     }
 
@@ -139,6 +173,8 @@ async function pushChatGPTToken(): Promise<void> {
     const accessToken = session.accessToken;
     if (!accessToken) {
       console.log('[Council] ChatGPT: no access token in session response');
+      // No accessToken on a 200 response = session ended on the provider side.
+      await reportSyncStatus('chatgpt', 'token_expired', 'chatgpt.com session response had no accessToken');
       return;
     }
 
@@ -151,6 +187,162 @@ async function pushChatGPTToken(): Promise<void> {
     }
   } catch (err) {
     console.error('[Council] ChatGPT token push error:', err);
+  }
+}
+
+/**
+ * Push the full ChatGPT conversation list from extension → server.
+ *
+ * chatgpt.com's sidebar uses a GraphQL persisted query with cursor pagination.
+ * The legacy REST endpoint /backend-api/conversations is now capped (~29 items
+ * regardless of account size), so the server can't see the full list. Running
+ * this from the extension gives us:
+ *   - the live persisted-query hash (chatgpt.com itself rotates it)
+ *   - the user's browser IP (no datacenter rate limit)
+ *   - access to the same sidebar view the user actually sees
+ */
+// Fallback hash — used only if we haven't yet captured a live hash from
+// chatgpt.com via the main-world fetch interceptor (see content/main-world/
+// fetch-interceptor.ts and content/isolated-world/index.ts). The interceptor
+// stores the live hash in chrome.storage.local on every chatgpt.com page
+// load. If chatgpt.com rotates the hash, the interceptor catches the new one
+// next time the user visits, and sync self-heals.
+const CHATGPT_GRAPHQL_HASH_FALLBACK = '5f5770417560c56ba8fa929b84900b53f40cdcc3906d5197003e9ecf7adf3bb7';
+const HASH_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+async function getChatGPTGraphqlHash(): Promise<string> {
+  try {
+    const stored = await new Promise<{ hash?: string; capturedAt?: number }>((resolve) => {
+      chrome.storage.local.get(['chatgptGraphqlHash', 'chatgptGraphqlHashCapturedAt'], (data) =>
+        resolve({ hash: data.chatgptGraphqlHash, capturedAt: data.chatgptGraphqlHashCapturedAt }),
+      );
+    });
+    if (stored.hash && /^[a-f0-9]{64}$/.test(stored.hash)) {
+      const age = Date.now() - (stored.capturedAt ?? 0);
+      if (age < HASH_MAX_AGE_MS) return stored.hash;
+    }
+  } catch {
+    // chrome.storage unavailable — fall through
+  }
+  return CHATGPT_GRAPHQL_HASH_FALLBACK;
+}
+
+async function pushChatGPTConversationList(): Promise<void> {
+  try {
+    const cookies = await chrome.cookies.getAll({ domain: 'chatgpt.com' });
+    const sessionCookie = cookies.find(
+      (c) => c.name === '__Secure-next-auth.session-token' || c.name === '__Secure-next-auth.callback-url',
+    );
+    if (!sessionCookie) return;
+
+    const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+    const sessionRes = await fetch('https://chatgpt.com/api/auth/session', {
+      headers: {
+        Cookie: cookieHeader,
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      },
+    });
+    if (!sessionRes.ok) {
+      // Stale session at chatgpt.com → flip our connection to expired so
+      // the UI surfaces it instead of leaving the user wondering why no
+      // new chats appear in Council.
+      if (sessionRes.status === 401 || sessionRes.status === 403) {
+        await reportSyncStatus('chatgpt', 'token_expired', `chatgpt.com session returned ${sessionRes.status}`);
+      }
+      return;
+    }
+    const session = await sessionRes.json();
+    const accessToken = session.accessToken;
+    if (!accessToken) {
+      await reportSyncStatus('chatgpt', 'token_expired', 'no accessToken in chatgpt.com session');
+      return;
+    }
+
+    const graphqlHash = await getChatGPTGraphqlHash();
+    let cursor: string | null = 'aWR4Oi0x'; // base64("idx:-1") — first page
+    let totalFetched = 0;
+    let pages = 0;
+    const PAGE_SIZE = 100;
+    const MAX_PAGES = 50; // hard cap: 5000 convos
+    const BATCH_PUSH = 200;
+    let pendingBatch: any[] = [];
+
+    while (cursor && pages < MAX_PAGES) {
+      const variables = { first: PAGE_SIZE, after: cursor, order: 'updated', expand: true, isArchived: false };
+      const extensions = { persistedQuery: { sha256Hash: graphqlHash, version: 1 } };
+      const url = new URL('https://chatgpt.com/graphql');
+      url.searchParams.append('variables', JSON.stringify(variables));
+      url.searchParams.append('extensions', JSON.stringify(extensions));
+
+      const res = await fetch(url.toString(), {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (res.status === 401) {
+        // The original silent-failure bug: GraphQL list 401 means the
+        // bearer token we just pushed is already stale (e.g. user signed
+        // out between session-fetch and list-fetch). Tell the server so
+        // the connection flips to 'token_expired' instead of staying
+        // 'syncing' forever and tricking the UI into a green checkmark.
+        console.log('[Council] ChatGPT list: 401 — reporting expired and stopping');
+        await reportSyncStatus('chatgpt', 'token_expired', 'GraphQL conversationDisplayHistory returned 401');
+        break;
+      }
+      if (res.status === 429) {
+        console.log('[Council] ChatGPT list: 429 — backing off and stopping');
+        break;
+      }
+      if (!res.ok) {
+        console.log(`[Council] ChatGPT list: ${res.status} — stopping`);
+        // Non-401 errors still indicate sync isn't healthy. Mark as 'error'
+        // rather than letting status drift while sidebar fetch silently fails.
+        await reportSyncStatus('chatgpt', 'error', `GraphQL list returned ${res.status}`);
+        break;
+      }
+
+      const data = (await res.json()) as {
+        data?: {
+          conversationDisplayHistory?: {
+            edges?: Array<{ node?: any }>;
+            pageInfo?: { hasNextPage?: boolean; endCursor?: string };
+          };
+        };
+      };
+      const edges = data.data?.conversationDisplayHistory?.edges ?? [];
+      const pageInfo = data.data?.conversationDisplayHistory?.pageInfo;
+      const items = edges.map((e) => e.node).filter(Boolean);
+
+      // Normalize to snake_case for the server endpoint
+      for (const node of items) {
+        pendingBatch.push({
+          id: node.id ?? node.conversation_id,
+          title: node.title ?? null,
+          create_time: typeof node.createTime === 'number' ? node.createTime : (node.create_time ?? null),
+          update_time: typeof node.updateTime === 'number' ? node.updateTime : (node.update_time ?? null),
+          gizmo_id: node.gizmoId ?? node.gizmo_id ?? null,
+        });
+      }
+      totalFetched += items.length;
+      pages++;
+
+      if (pendingBatch.length >= BATCH_PUSH) {
+        await councilFetch('/api/sync/chatgpt-conversations/bulk', 'POST', { conversations: pendingBatch });
+        pendingBatch = [];
+      }
+
+      if (!pageInfo?.hasNextPage || !pageInfo.endCursor) break;
+      cursor = pageInfo.endCursor;
+      await new Promise((r) => setTimeout(r, 400));
+    }
+
+    if (pendingBatch.length > 0) {
+      await councilFetch('/api/sync/chatgpt-conversations/bulk', 'POST', { conversations: pendingBatch });
+    }
+
+    console.log(`[Council] ChatGPT list: pushed ${totalFetched} conversations across ${pages} pages`);
+    syncProgress('chatgpt', 'list_synced', totalFetched, totalFetched);
+  } catch (err) {
+    console.error('[Council] ChatGPT list push error:', err);
   }
 }
 
@@ -377,8 +569,30 @@ async function pushGeminiTokens(): Promise<void> {
       // Page fetch failed — still send cookies
     }
 
-    // Send cookies + pre-extracted page tokens to server
-    const cookieData = allCookies.map((c) => ({ name: c.name, value: c.value }));
+    // Send only the cookies Gemini's API actually needs to the server —
+    // NOT the entire *.google.com cookie jar. Gmail session cookies,
+    // Drive auth, etc. would otherwise get relayed to Council's server
+    // granting far more account access than needed if that server were
+    // ever compromised (gemini-review 4 critical).
+    const GEMINI_REQUIRED_COOKIES = new Set([
+      '__Secure-1PSID',
+      '__Secure-1PSIDTS',
+      '__Secure-1PSIDCC',
+      '__Secure-3PSID',
+      '__Secure-3PSIDTS',
+      '__Secure-3PSIDCC',
+      'SID',
+      'HSID',
+      'SSID',
+      'APISID',
+      'SAPISID',
+      '__Secure-1PAPISID',
+      '__Secure-3PAPISID',
+      'NID',
+    ]);
+    const cookieData = allCookies
+      .filter((c) => GEMINI_REQUIRED_COOKIES.has(c.name))
+      .map((c) => ({ name: c.name, value: c.value }));
     const tokenPayload = {
       sessionToken: JSON.stringify({
         cookies: cookieData,
@@ -706,6 +920,7 @@ export async function runAutoSync(): Promise<void> {
     pushChatGPTToken(),
     pushClaudeToken(),
     pushGeminiTokens(),
+    pushChatGPTConversationList(),
     backfillChatGPTMessages(),
     syncGeminiFromExtension(),
   ]);

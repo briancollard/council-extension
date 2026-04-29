@@ -1331,13 +1331,39 @@ function getAllNoteConversationIds(): Promise<any> {
 }
 
 function addConversations(conversations: any[]): Promise<any> {
-  const mapped = conversations.map((c) => ({
-    ...c,
-    conversation_id: c.conversation_id || c.id,
-    create_time: typeof c.create_time === 'number' ? c.create_time : new Date(c.create_time).getTime() / 1000,
-    update_time: typeof c.update_time === 'number' ? c.update_time : new Date(c.update_time).getTime() / 1000,
-    has_attachments: conversationHasAttachments(c),
-  }));
+  // ChatGPT conversation list is now owned by auto-sync.ts (GraphQL → /api/sync/chatgpt-conversations/bulk).
+  // The SuperPower-port content scripts still fire addConversations messages
+  // when they intercept chatgpt.com sidebar fetches; drop those silently to
+  // avoid double-writes that produced orphan rows with no source_url.
+  const filtered = conversations.filter((c) => {
+    const source = c.source ?? 'chatgpt';
+    return source !== 'chatgpt';
+  });
+  if (filtered.length === 0) {
+    return Promise.resolve({ skipped: conversations.length });
+  }
+
+  const mapped = filtered.map((c) => {
+    const convId = c.conversation_id || c.id;
+    const source = c.source;
+    const sourceUrl =
+      c.source_url ??
+      (source === 'claude'
+        ? `https://claude.ai/chat/${convId}`
+        : source === 'gemini'
+          ? `https://gemini.google.com/app/${convId}`
+          : null);
+    return {
+      ...c,
+      conversation_id: convId,
+      source,
+      source_id: c.source_id ?? convId,
+      source_url: sourceUrl,
+      create_time: typeof c.create_time === 'number' ? c.create_time : new Date(c.create_time).getTime() / 1000,
+      update_time: typeof c.update_time === 'number' ? c.update_time : new Date(c.update_time).getTime() / 1000,
+      has_attachments: conversationHasAttachments(c),
+    };
+  });
   return apiPost('/gptx/add-conversations/', { conversations: mapped });
 }
 

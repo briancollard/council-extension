@@ -34,7 +34,9 @@ initializeContextMenu();
     // cookies API not available
   }
   if (!hasAuth) {
-    const data = await chrome.storage.sync.get(['councilBearerToken']);
+    // chrome.storage.local (not sync) — bearer tokens shouldn't propagate
+    // across devices via Chrome Sync (gemini-review 4 medium).
+    const data = await chrome.storage.local.get(['councilBearerToken']);
     if (data.councilBearerToken) hasAuth = true;
   }
 

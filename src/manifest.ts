@@ -3,11 +3,11 @@ import { defineManifest } from '@crxjs/vite-plugin';
 export default defineManifest({
   manifest_version: 3,
   name: 'Council',
-  version: '0.2.1',
+  version: '0.2.3',
   description: 'Multi-LLM conversation manager — unified threads across providers',
   default_locale: 'en',
 
-  permissions: ['storage', 'unlimitedStorage', 'contextMenus', 'cookies', 'notifications', 'alarms'],
+  permissions: ['storage', 'unlimitedStorage', 'contextMenus', 'cookies', 'alarms'],
   optional_permissions: ['activeTab', 'tabs'],
   host_permissions: [
     'https://chatgpt.com/*',

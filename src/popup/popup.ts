@@ -235,7 +235,7 @@ async function initializeAuthSection(): Promise<void> {
 
   // Fall back to stored token
   if (!hasAuth) {
-    const data = await chrome.storage.sync.get(['councilBearerToken', 'councilUserDisplay']);
+    const data = await chrome.storage.local.get(['councilBearerToken', 'councilUserDisplay']);
     if (data.councilBearerToken) {
       showLoggedIn(data.councilUserDisplay || 'Signed in');
       hasAuth = true;
@@ -280,7 +280,7 @@ async function initializeAuthSection(): Promise<void> {
       }
 
       const userDisplay = body.user?.name || body.user?.email || email;
-      await chrome.storage.sync.set({
+      await chrome.storage.local.set({
         councilBearerToken: body.token,
         councilUserDisplay: userDisplay,
       });
@@ -304,7 +304,7 @@ async function initializeAuthSection(): Promise<void> {
   });
 
   signoutBtn.addEventListener('click', async () => {
-    await chrome.storage.sync.remove(['councilBearerToken', 'councilUserDisplay']);
+    await chrome.storage.local.remove(['councilBearerToken', 'councilUserDisplay']);
     // Also clear the cookie
     try {
       await chrome.cookies.remove({ url: API_URL, name: 'council_token' });
@@ -472,7 +472,7 @@ async function fetchSyncStatus(): Promise<SyncStatusResponse | null> {
     /* no cookie */
   }
   if (!token) {
-    const data = await chrome.storage.sync.get(['councilBearerToken']);
+    const data = await chrome.storage.local.get(['councilBearerToken']);
     if (data.councilBearerToken) token = data.councilBearerToken;
   }
   if (!token) return null;
